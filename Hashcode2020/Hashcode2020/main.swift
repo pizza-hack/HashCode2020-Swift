@@ -94,7 +94,13 @@ struct Library {
         }
         
         if i >= books.count {
-            return Int( Float(points) * 0.9 )
+            
+            let gapDays = (num - counter) / booksPerDay
+            let workDays = counter / booksPerDay
+            
+            let pointsPerDay = Float(points) / Float(workDays)
+            
+            return Int( Float(points) - pointsPerDay * Float( gapDays ) )
         }
         
         return points
