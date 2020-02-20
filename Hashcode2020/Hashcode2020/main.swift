@@ -191,16 +191,17 @@ while restDays > 1,
     var maxLib = libraries.max(by: { (lib1, lib2) -> Bool in
         lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
     })!
-
-    if let index = libraries.firstIndex(where: { (lib) -> Bool in
-        lib.libID == maxLib.libID
-    })  {
-        libraries.remove(at: index)
-    }
-
         
-    let booksToSend = maxLib.booksToSend(restDays)!
-        
+   if let booksToSend = maxLib.booksToSend(restDays),
+    booksToSend.count > 0 {
+    
+        if let index = libraries.firstIndex(where: { (lib) -> Bool in
+            lib.libID == maxLib.libID
+        })  {
+            libraries.remove(at: index)
+        }
+
+            
         maxLib.selectedBooks = booksToSend
     
         for i in 0 ..< booksToSend.count {
@@ -209,10 +210,12 @@ while restDays > 1,
             allBooks[bookID].sent = true
             
         }
+        
+        sortedLibs.append(maxLib)
+        restDays -= maxLib.daysForSign
     
-    sortedLibs.append(maxLib)
-    restDays -= maxLib.daysForSign
-    
+        
+    }
 }
 
 debugPrint("Done, number of libraries to send ")
