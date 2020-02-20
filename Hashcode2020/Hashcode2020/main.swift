@@ -105,20 +105,26 @@ struct Library {
     }
     
     
-    func booksToSend() -> [Book]? {
+    func booksToSend(_ days: Int) -> [Book]? {
         
         var selectedBooks: [Book] = []
+        
+        var booksCounter = 0
+        
+        let maxBooks = (days - daysForSign) * booksPerDay
         
         for bookID in books {
             let theBook = allBooks[bookID]
             if !theBook.sent {
                 selectedBooks.append(theBook)
+                booksCounter += 1
+                if booksCounter > maxBooks {
+                    break
+                }
             }
         }
         
-        return selectedBooks.sorted { (book1, book2) -> Bool in
-            book1.score > book2.score
-        }
+        return selectedBooks
     }
 
     let books: [Int]
@@ -136,15 +142,26 @@ for i in 0 ..< numLibs {
     let daysForSign = Int(comps[1])!
     let booksPerDay = Int(comps[2])!
     
-    
     var books:[Int] = []
+    
     lineNum += 1
     let secondLine = lines[lineNum]
     comps = secondLine.components(separatedBy: " ")
     
+    var bookObjs: [Book] = []
+    
     for j in 0 ..< numBooks {
         let bookID = Int( comps[j] )!
-        books.append( bookID)
+        bookObjs.append(allBooks[bookID])
+//        books.append( bookID)
+    }
+    
+    bookObjs.sort { (book1, book2) -> Bool in
+        book1.score > book2.score
+    }
+    
+    for bookObj in bookObjs {
+        books.append(bookObj.bookID)
     }
     
     let lib = Library(libID: i,
@@ -164,6 +181,8 @@ var sortedLibs: [Library] = []
 
 while restDays > 1,
     libraries.count > 0{
+        
+        debugPrint("Free days count: \(restDays)")
     
     var maxLib = libraries.max(by: { (lib1, lib2) -> Bool in
         lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
@@ -176,7 +195,7 @@ while restDays > 1,
     }
 
         
-    let booksToSend = maxLib.booksToSend()!
+    let booksToSend = maxLib.booksToSend(restDays)!
         
         maxLib.selectedBooks = booksToSend
     
