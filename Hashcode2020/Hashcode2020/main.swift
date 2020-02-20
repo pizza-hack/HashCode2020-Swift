@@ -93,8 +93,8 @@ struct Library {
             i += 1
         }
         
-        if i > books.count {
-            return 0
+        if i >= books.count {
+            return Int( Float(points) * 0.9 )
         }
         
         return points
