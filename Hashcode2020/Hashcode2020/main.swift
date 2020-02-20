@@ -80,12 +80,16 @@ struct Library {
         var i = 0
         var points = 0
         
-        while i < num,
+        var counter = 0
+        
+        while counter < num,
             i < books.count {
             let bookID = books[i]
             let theBook = allBooks[bookID]
-            points += theBook.score
-            
+                if !theBook.sent {
+                    points += theBook.score
+                    counter += 1
+                }
             i += 1
         }
         
