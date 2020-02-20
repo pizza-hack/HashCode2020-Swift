@@ -69,6 +69,17 @@ struct Library {
     let numBooks: Int
     let daysForSign: Int
     let booksPerDay: Int
+    
+    let totalPoints: Int
+    
+    var allBooksTime: Int {
+        books.count / booksPerDay + ( books.count % booksPerDay != 0 ? 1 : 0)
+    }
+    
+    var totalTime: Int {
+        daysForSign + allBooksTime
+    }
+    
     let books: [Int]
 }
 
@@ -90,15 +101,19 @@ for i in 0 ..< numLibs {
     let secondLine = lines[lineNum]
     comps = secondLine.components(separatedBy: " ")
     
+    var allPoints = 0
+    
     for j in 0 ..< numBooks {
-        books.append(Int( comps[j] )!)
-
+        let bookID = Int( comps[j] )!
+        books.append( bookID)
+        allPoints += allBooks[bookID].score
     }
     
     let lib = Library(libID: i,
                       numBooks: numBooks,
                       daysForSign: daysForSign,
                       booksPerDay: booksPerDay,
+                      totalPoints: allPoints,
                       books: books)
     libraries.append(lib)
     
@@ -108,7 +123,7 @@ for i in 0 ..< numLibs {
 //********************
 
 
-debugPrint("end")
+
 
 
 exit(0)
