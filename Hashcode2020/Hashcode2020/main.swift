@@ -70,7 +70,27 @@ struct Library {
     let daysForSign: Int
     let booksPerDay: Int
     
-    let totalPoints: Int
+    var selectedBooks: [Book]
+    
+    func totalPoint(_ days: Int) -> Int {
+        let realDays = days - daysForSign
+        
+        let num = booksPerDay * realDays
+        
+        var i = 0
+        var points = 0
+        
+        while i < num,
+            i < books.count {
+            let bookID = books[i]
+            let theBook = allBooks[bookID]
+            points += theBook.score
+            
+            i += 1
+        }
+        
+        return points
+    }
     
     var allBooksTime: Int {
         books.count / booksPerDay + ( books.count % booksPerDay != 0 ? 1 : 0)
@@ -80,6 +100,27 @@ struct Library {
         daysForSign + allBooksTime
     }
     
+    func timeRatio(_ days: Int) -> Float {
+        return Float( totalPoint(days)) / Float( totalTime )
+    }
+    
+    
+    func booksToSend() -> [Book]? {
+        
+        var selectedBooks: [Book] = []
+        
+        for bookID in books {
+            let theBook = allBooks[bookID]
+            if !theBook.sent {
+                selectedBooks.append(theBook)
+            }
+        }
+        
+        return selectedBooks.sorted { (book1, book2) -> Bool in
+            book1.score > book2.score
+        }
+    }
+
     let books: [Int]
 }
 
@@ -101,19 +142,15 @@ for i in 0 ..< numLibs {
     let secondLine = lines[lineNum]
     comps = secondLine.components(separatedBy: " ")
     
-    var allPoints = 0
-    
     for j in 0 ..< numBooks {
         let bookID = Int( comps[j] )!
         books.append( bookID)
-        allPoints += allBooks[bookID].score
     }
     
     let lib = Library(libID: i,
                       numBooks: numBooks,
                       daysForSign: daysForSign,
-                      booksPerDay: booksPerDay,
-                      totalPoints: allPoints,
+                      booksPerDay: booksPerDay, selectedBooks: [],
                       books: books)
     libraries.append(lib)
     
@@ -122,8 +159,72 @@ for i in 0 ..< numLibs {
 
 //********************
 
+var restDays = numDays
+var sortedLibs: [Library] = []
+
+while restDays > 1,
+    libraries.count > 0{
+    
+    var maxLib = libraries.max(by: { (lib1, lib2) -> Bool in
+        lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
+    })!
+
+    if let index = libraries.firstIndex(where: { (lib) -> Bool in
+        lib.libID == maxLib.libID
+    })  {
+        libraries.remove(at: index)
+    }
+
+        
+    let booksToSend = maxLib.booksToSend()!
+        
+        maxLib.selectedBooks = booksToSend
+    
+        for i in 0 ..< booksToSend.count {
+            let bookID = booksToSend[i].bookID
+
+            allBooks[bookID].sent = true
+            
+        }
+    
+    sortedLibs.append(maxLib)
+    restDays -= maxLib.daysForSign
+    
+}
+
+debugPrint("Done, number of libraries to send ")
 
 
+var output: String = ""
 
+// 1. num of libs
+
+output = "\( sortedLibs.count)\n"
+
+for i in 0 ..< sortedLibs.count {
+    
+    // first line
+    let lib = sortedLibs[i]
+    
+    let booksToSend = lib.selectedBooks
+    
+    output += "\(lib.libID ) \( booksToSend.count )\n"
+    
+    // second line
+    var firstNumber = true
+    
+    for i in 0 ..< booksToSend.count {
+        
+        let theBook = booksToSend[i]
+        
+        output += firstNumber ? "\( theBook.bookID )" : " \( theBook.bookID )"
+        firstNumber = false
+    }
+    
+    output += "\n"
+    
+}
+
+try? output.write(to: URL(fileURLWithPath: outputPath), atomically: true, encoding: .ascii)
 
 exit(0)
