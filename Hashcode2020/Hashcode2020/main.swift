@@ -93,6 +93,10 @@ struct Library {
             i += 1
         }
         
+        if i > books.count {
+            return 0
+        }
+        
         return points
     }
     
@@ -105,9 +109,8 @@ struct Library {
     }
     
     func timeRatio(_ days: Int) -> Float {
-        return Float( totalPoint(days)) / Float( daysForSign )
+        return Float( totalPoint(days) ) / Float( daysForSign )
     }
-    
     
     func booksToSend(_ days: Int) -> [Book]? {
         
