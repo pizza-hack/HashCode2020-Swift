@@ -105,7 +105,7 @@ struct Library {
     }
     
     func timeRatio(_ days: Int) -> Float {
-        return Float( totalPoint(days)) / (Float( daysForSign ) * Float( daysForSign))
+        return Float( totalPoint(days)) / Float( daysForSign )
     }
     
     
