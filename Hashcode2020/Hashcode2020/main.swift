@@ -42,6 +42,18 @@ struct Book {
 
 var allBooks: [Book] = []
 
+var numLibsByDaysToSign:[Int:Int] = [:]
+
+func minDaysToSign() -> Int? {
+    let keys = numLibsByDaysToSign.keys.sorted()
+    
+    for key in keys {
+        if numLibsByDaysToSign[key]! > 0 {
+            return key
+        }
+    }
+    return nil
+}
 
 struct Library {
     
@@ -73,6 +85,7 @@ struct Library {
                 }
             i += 1
         }
+        
         return (points: points, days: Int(ceil(Float(counter)/Float(booksPerDay))), books: counter)
     }
     
@@ -83,7 +96,7 @@ struct Library {
         // how many days unused?
         let gap = days - usedDays - daysForSign
         
-        return Float( points )  / Float( daysForSign )
+        return Float( points ) / Float( daysForSign ) * (gap > 1 ? 0.9 : 1.0)
     }
     
     func booksToSend(_ days: Int) -> [Book]? {
@@ -107,6 +120,9 @@ struct Library {
 }
 
 var libraries = [Library]()
+
+
+
 let numBooks: Int
 let numLibs: Int
 let numDays: Int
@@ -174,6 +190,9 @@ for i in 0 ..< numLibs {
                       books: books,
                       booksPerDay: booksPerDay,
                       selectedBooks: [])
+    
+    numLibsByDaysToSign[daysForSign] = (numLibsByDaysToSign[daysForSign] ?? 0) + 1
+    
     libraries.append(lib)
     
     lineNum += 1
@@ -192,13 +211,54 @@ var stopFlag = false
 while restDays > 1,
     libraries.count > 0,
     !stopFlag {
+        
+        let slibs = libraries.sorted { (lib1, lib2) -> Bool in
+            lib1.timeRatio(restDays) > lib2.timeRatio(restDays)
+        }
+        
+        var maxLib: Library = slibs[0]
+        
+        for i in 0 ..< slibs.count {
+
+            if i == slibs.count - 1 {
+                maxLib = slibs[i]
+            } else {
+                
+                let a = slibs[i]
+                let b = slibs[i+1]
+
+                
+                // Skip [i] if points difference is less than the diff in sign days times average of [i+1]
+                
+                let signDiff = a.daysForSign - b.daysForSign
+                
+                let (pointsA, _, _) = a.totalPoint(restDays)
+                let (pointsB, daysB, _) = b.totalPoint(restDays)
+                
+                if daysB == 0 {
+                    maxLib = slibs[i]
+                    break
+                }
+                
+                let pointsDiff = pointsA - pointsB
+                
+                let estimate = pointsB / daysB
+                
+                if pointsDiff > signDiff * estimate {
+                    maxLib = slibs[i]
+                    break
+                }
+            }
+        }
+        
+//        var maxLib = libraries.max { (lib1, lib2) -> Bool in
+//
+//            return lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
+//        }!
+        
+
     
-    // Find next best lib
-    var maxLib = libraries.max(by: { (lib1, lib2) -> Bool in
-        lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
-    })!
-    
-        debugPrint("Free days count: \(restDays) signDays: \( maxLib.daysForSign )")
+    debugPrint("Free days count: \(restDays) signDays: \( maxLib.daysForSign )")
         
    if let booksToSend = maxLib.booksToSend(restDays),
     booksToSend.count > 0 {
@@ -210,13 +270,12 @@ while restDays > 1,
         finalScore += points
     }
     
-    
-    
         // remove lib from source array
         if let index = libraries.firstIndex(where: { (lib) -> Bool in
             lib.libID == maxLib.libID
         })  {
             libraries.remove(at: index)
+            numLibsByDaysToSign[maxLib.daysForSign]! -= 1
         }
    
         // save list of books and mark books as read
