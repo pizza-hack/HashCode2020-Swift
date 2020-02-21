@@ -8,7 +8,9 @@
 
 import Foundation
 
-print("Hello, World!")
+debugPrint("Pizza Hack Hasscode\n================")
+
+let debug = true
 
 // MARK: - ARGUMENTS IN COMMAND LINE
 // ==================================
@@ -29,22 +31,8 @@ guard let input = try? String(contentsOfFile: filePath) else {
     exit(0)
 }
 
-// MARK: - READ FILE
-// ==============================
-
-let lines = input.components(separatedBy: "\n")
-
-var allNums:[Int] = []
-
-// first line
-
-let firstLine = lines[0]
-
-let nums = firstLine.components(separatedBy: " ")
-let numBooks = Int(nums[0])!
-let numLibs = Int(nums[1])!
-let numDays = Int(nums[2])!
-
+// MARK: - DATA STRUCTURE
+// ======================
 
 struct Book {
     let bookID: Int
@@ -54,25 +42,18 @@ struct Book {
 
 var allBooks: [Book] = []
 
-let secondLine = lines[1]
-let scoreStrings = secondLine.components(separatedBy: " ")
-
-
-
-for i in 0 ..< numBooks {
-    let score = Int(scoreStrings[i])!
-    allBooks.append(Book(bookID: i, score: score, sent: false))
-}
 
 struct Library {
+    
     let libID: Int
     let numBooks: Int
     let daysForSign: Int
+    let books: [Int]
     let booksPerDay: Int
     
     var selectedBooks: [Book]
     
-    func totalPoint(_ days: Int) -> Int {
+    func totalPoint(_ days: Int) -> (points: Int, days: Int, books: Int) {
         let realDays = days - daysForSign
         
         let num = booksPerDay * realDays
@@ -92,38 +73,22 @@ struct Library {
                 }
             i += 1
         }
-        
-        if i >= books.count {
-            
-            let gapDays = (num - counter) / booksPerDay
-            let workDays = counter / booksPerDay
-            
-            let pointsPerDay = Float(points) / Float(workDays)
-            
-            return Int( Float(points) - pointsPerDay * Float( gapDays ) )
-        }
-        
-        return points
-    }
-    
-    var allBooksTime: Int {
-        books.count / booksPerDay + ( books.count % booksPerDay != 0 ? 1 : 0)
-    }
-    
-    var totalTime: Int {
-        daysForSign + allBooksTime
+        return (points: points, days: Int(ceil(Float(counter)/Float(booksPerDay))), books: counter)
     }
     
     func timeRatio(_ days: Int) -> Float {
-        return Float( totalPoint(days) ) / Float( daysForSign )
+        
+        let (points, usedDays, _) = totalPoint(days)
+        
+        // how many days unused?
+        let gap = days - usedDays - daysForSign
+        
+        return Float( points )  / Float( daysForSign )
     }
     
     func booksToSend(_ days: Int) -> [Book]? {
-        
         var selectedBooks: [Book] = []
-        
         var booksCounter = 0
-        
         let maxBooks = (days - daysForSign) * booksPerDay
         
         for bookID in books {
@@ -139,11 +104,37 @@ struct Library {
         
         return selectedBooks
     }
-
-    let books: [Int]
 }
 
 var libraries = [Library]()
+let numBooks: Int
+let numLibs: Int
+let numDays: Int
+
+// MARK: - READ FILE
+// ==============================
+
+let lines = input.components(separatedBy: "\n")
+
+var allNums:[Int] = []
+
+// first line
+
+let firstLine = lines[0]
+
+let nums = firstLine.components(separatedBy: " ")
+
+numBooks = Int(nums[0])!
+numLibs = Int(nums[1])!
+numDays = Int(nums[2])!
+
+let secondLine = lines[1]
+let scoreStrings = secondLine.components(separatedBy: " ")
+
+for i in 0 ..< numBooks {
+    let score = Int(scoreStrings[i])!
+    allBooks.append(Book(bookID: i, score: score, sent: false))
+}
 
 var lineNum = 2
 
@@ -180,55 +171,74 @@ for i in 0 ..< numLibs {
     let lib = Library(libID: i,
                       numBooks: numBooks,
                       daysForSign: daysForSign,
-                      booksPerDay: booksPerDay, selectedBooks: [],
-                      books: books)
+                      books: books,
+                      booksPerDay: booksPerDay,
+                      selectedBooks: [])
     libraries.append(lib)
     
     lineNum += 1
 }
 
+// MARK: - Solve !
 //********************
 
 var restDays = numDays
 var sortedLibs: [Library] = []
 
+var finalScore = 0
+
+var stopFlag = false
+
 while restDays > 1,
-    libraries.count > 0{
-        
-        debugPrint("Free days count: \(restDays)")
+    libraries.count > 0,
+    !stopFlag {
     
+    // Find next best lib
     var maxLib = libraries.max(by: { (lib1, lib2) -> Bool in
         lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
     })!
+    
+        debugPrint("Free days count: \(restDays) signDays: \( maxLib.daysForSign )")
         
    if let booksToSend = maxLib.booksToSend(restDays),
     booksToSend.count > 0 {
     
+    if debug {
+        // calculate score
+        
+        let (points, _, _) = maxLib.totalPoint(restDays)
+        finalScore += points
+    }
+    
+    
+    
+        // remove lib from source array
         if let index = libraries.firstIndex(where: { (lib) -> Bool in
             lib.libID == maxLib.libID
         })  {
             libraries.remove(at: index)
         }
-
-            
+   
+        // save list of books and mark books as read
         maxLib.selectedBooks = booksToSend
     
         for i in 0 ..< booksToSend.count {
             let bookID = booksToSend[i].bookID
-
             allBooks[bookID].sent = true
-            
         }
         
         sortedLibs.append(maxLib)
         restDays -= maxLib.daysForSign
-    
-        
+   } else {
+        debugPrint("hi")
+        stopFlag = true
     }
 }
 
-debugPrint("Done, number of libraries to send ")
+debugPrint("FINAL SCORE: \( finalScore)\n")
 
+// MARK: - BUILD OUTPUT FILE
+// =========================
 
 var output: String = ""
 
@@ -261,5 +271,7 @@ for i in 0 ..< sortedLibs.count {
 }
 
 try? output.write(to: URL(fileURLWithPath: outputPath), atomically: true, encoding: .ascii)
+
+debugPrint("THE END!")
 
 exit(0)
