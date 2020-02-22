@@ -100,17 +100,20 @@ struct Library {
     }
     
     func booksToSend(_ days: Int) -> [Book]? {
+        
         var selectedBooks: [Book] = []
         var booksCounter = 0
         let maxBooks = (days - daysForSign) * booksPerDay
         
-        for bookID in books {
-            let theBook = allBooks[bookID]
-            if !theBook.sent {
-                selectedBooks.append(theBook)
-                booksCounter += 1
-                if booksCounter > maxBooks {
-                    break
+        if maxBooks > 0 {
+            for bookID in books {
+                let theBook = allBooks[bookID]
+                if !theBook.sent {
+                    selectedBooks.append(theBook)
+                    booksCounter += 1
+                    if booksCounter >= maxBooks {
+                        break
+                    }
                 }
             }
         }
