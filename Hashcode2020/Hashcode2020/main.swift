@@ -8,7 +8,7 @@
 
 import Foundation
 
-debugPrint("Pizza Hack Hasscode\n================")
+print("Pizza Hack Hasscode\n================")
 
 let debug = true
 
@@ -16,7 +16,7 @@ let debug = true
 // ==================================
 
 guard CommandLine.arguments.count > 2 else {
-    debugPrint("No input file name in command line")
+    print("No input file name in command line")
     exit(0)
 }
 
@@ -27,7 +27,7 @@ let filePath = fileName.hasPrefix("/") ? fileName : FileManager.default.currentD
 let outputPath = outputName.hasPrefix("/") ? outputName : FileManager.default.currentDirectoryPath + "/" + outputName
 
 guard let input = try? String(contentsOfFile: filePath) else {
-    debugPrint("Error: could not read file \(filePath)" )
+    print("Error: could not read file \(filePath)" )
     exit(0)
 }
 
@@ -96,10 +96,10 @@ struct Library {
         // how many days unused?
         let gap = days - usedDays - daysForSign
         
-        return Float( points ) / Float( daysForSign ) * (gap > 1 ? 0.9 : 1.0)
+        return Float( points ) / pow(Float( daysForSign ), 1.2)  * (gap > 1 ? 0.93 : 1.0)
     }
     
-    func booksToSend(_ days: Int) -> [Book]? {
+    func booksToSend(_ days: Int) -> [Book] {
         
         var selectedBooks: [Book] = []
         var booksCounter = 0
@@ -204,36 +204,170 @@ for i in 0 ..< numLibs {
 // MARK: - Solve !
 //********************
 
-var restDays = numDays
+print("start solve algorithm. File: \(fileName)")
+print("\( libraries.count) initial libraries")
+
 var sortedLibs: [Library] = []
 
-var finalScore = 0
+var bestAttempt: [Library] = []
 
 var stopFlag = false
 
 // fist attemp: sort all the libraries using a smart criterion
 // this is the most important point....
+// ***********************************
 
-libraries.sort { (lib1, lib2) -> Bool in
-    lib1.timeRatio(restDays) > lib2.timeRatio(restDays)
+var workLibraries = libraries
+let workNumDays = numDays
+var restDays = numDays + 20 // margin to have more libs to iterante latter
+var selectedLibs: [Library] = []
+print("start libs selection for \( restDays) days")
+while restDays > 1,
+    workLibraries.count > 0 {
+    
+        let maxLib = workLibraries.max { (lib1, lib2) -> Bool in
+            lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
+        }!
+    
+        let libScores = maxLib.totalPoint(restDays)
+        
+        if libScores.points == 0 {
+            break
+        }
+        
+        let selectedBooks = maxLib.selectedBooks
+        for book in selectedBooks {
+            allBooks[book.bookID].sent = true
+        }
+        
+        selectedLibs.append(maxLib)
+        
+        let index = workLibraries.firstIndex { (lib) -> Bool in
+            lib.libID == maxLib.libID
+        }!
+        
+        workLibraries.remove(at: index)
+        
+        restDays -= maxLib.daysForSign
+        
+        print("\(maxLib.libID) resting:\(restDays) days sign:\(maxLib.daysForSign) days:\(libScores.days) points:\(libScores.points)")
 }
 
-var stack: [(libID: Int, startDay: Int)] = []
-stack.append((0,0))
+libraries = selectedLibs
+
+for i in 0 ..< allBooks.count {
+    allBooks[i].sent = false
+}
+
+print("Selected \( libraries.count ) libraries")
+
+// ITERATE ORDER TO FIND BEST SOLUTION.
+// ************************************
+
+// Strategy:
+// - recursivelly iterate all positions of last 15 selected libraries.
+
+var stack: [(libIndex: Int, startDay: Int, remove: Bool)] = []
+stack.append((0,0, false))
+
+var currentScore = 0
+
+var nextDay = 0  // start with first day
+
+var bestScore = 0
+
+func checkBestScore() {
+    if currentScore > bestScore {
+        bestScore = currentScore
+        bestAttempt = sortedLibs
+        
+        print(currentScore)
+    }
+}
+
+let timeout: TimeInterval = 60.0 * 10.0  // five minutes ??
+let startTime = Date()
+
+var iterationCounter = 10000
+
+var stopForTimeout = false
 
 while stack.count > 0 {
+    
+    iterationCounter -= 1
+    if iterationCounter == 0 {
+        iterationCounter = 10000
         
-    let stackItem = stack.last!
-    var theLib = libraries[stackItem.libID]
+        if  Date().timeIntervalSince(startTime) > timeout {
+            stopForTimeout = true
+            break
+        }
+    }
     
-    // add the library to current solution
+    let stackItem = stack.removeLast()
     
-    let booksToSend = theLib.booksToSend(restDays)
-    
-    
+    if stackItem.remove {
+        
+        // remove the lib from current solution
+        
+        let theLibrary = sortedLibs.removeLast()
+        
+        for book in theLibrary.selectedBooks {
+            assert(allBooks[book.bookID].sent, "Error in 'sent' value for solve algorithm!")
+            
+            allBooks[book.bookID].sent = false
+            currentScore -= book.score
+        }
+        
+        // And go for next one
+        let nextIndex = stackItem.libIndex + 1
+        if nextIndex < libraries.count {
+            stack.append((libIndex: nextIndex, startDay: stackItem.startDay, remove: false))
+        }
+        
+    } else {
+        
+        var nextStartDay: Int
+        
+        var theLib = libraries[stackItem.libIndex]
+        
+        // add the library to current solution
+        
+        let libScores = theLib.totalPoint(numDays - stackItem.startDay)
+        
+        if libScores.points > 0 {
+            
+            let booksToSend = theLib.booksToSend(numDays - stackItem.startDay)
+            
+            theLib.selectedBooks = booksToSend
+            
+            for book in booksToSend {
+                assert(!allBooks[book.bookID].sent, "Error duplicated book!")
+                
+                allBooks[book.bookID].sent = true
+                currentScore += book.score
+            }
+            
+            stack.append((libIndex: stackItem.libIndex, startDay: stackItem.startDay, remove: true))
+            sortedLibs.append(theLib)
+            
+            checkBestScore()
+            
+            nextStartDay = stackItem.startDay + theLib.daysForSign
+            
+        } else {
+            nextStartDay = stackItem.startDay
+        }
+        
+        // if there are more libs, try with next one
+        let nextIndex = stackItem.libIndex + 1
+        if nextIndex < libraries.count {
+            stack.append((libIndex: nextIndex, startDay: nextStartDay, remove: false))
+        }
+    }
 }
 
-debugPrint("FINAL SCORE: \( finalScore)\n")
+print("FINAL SCORE: \( bestScore)\n")
 
 // MARK: - BUILD OUTPUT FILE
 // =========================
@@ -242,12 +376,12 @@ var output: String = ""
 
 // 1. num of libs
 
-output = "\( sortedLibs.count)\n"
+output = "\( bestAttempt.count)\n"
 
-for i in 0 ..< sortedLibs.count {
+for i in 0 ..< bestAttempt.count {
     
     // first line
-    let lib = sortedLibs[i]
+    let lib = bestAttempt[i]
     
     let booksToSend = lib.selectedBooks
     
@@ -270,6 +404,6 @@ for i in 0 ..< sortedLibs.count {
 
 try? output.write(to: URL(fileURLWithPath: outputPath), atomically: true, encoding: .ascii)
 
-debugPrint("THE END!")
+print("THE END!")
 
 exit(0)

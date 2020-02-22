@@ -52,11 +52,11 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "f_libraries_of_the_world.txt"
+            argument = "e_so_many_books.txt"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "f_libraries_of_the_world.out"
+            argument = "e_so_many_books.out"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
