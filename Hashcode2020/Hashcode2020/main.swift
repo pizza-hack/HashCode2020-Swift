@@ -208,90 +208,26 @@ var finalScore = 0
 
 var stopFlag = false
 
-while restDays > 1,
-    libraries.count > 0,
-    !stopFlag {
-        
-        let slibs = libraries.sorted { (lib1, lib2) -> Bool in
-            lib1.timeRatio(restDays) > lib2.timeRatio(restDays)
-        }
-        
-        var maxLib: Library = slibs[0]
-        
-        for i in 0 ..< slibs.count {
+// fist attemp: sort all the libraries using a smart criterion
+// this is the most important point....
 
-            if i == slibs.count - 1 {
-                maxLib = slibs[i]
-            } else {
-                
-                let a = slibs[i]
-                let b = slibs[i+1]
+libraries.sort { (lib1, lib2) -> Bool in
+    lib1.timeRatio(restDays) > lib2.timeRatio(restDays)
+}
 
-                
-                // Skip [i] if points difference is less than the diff in sign days times average of [i+1]
-                
-                let signDiff = a.daysForSign - b.daysForSign
-                
-                let (pointsA, _, _) = a.totalPoint(restDays)
-                let (pointsB, daysB, _) = b.totalPoint(restDays)
-                
-                if daysB == 0 {
-                    maxLib = slibs[i]
-                    break
-                }
-                
-                let pointsDiff = pointsA - pointsB
-                
-                let estimate = pointsB / daysB
-                
-                if pointsDiff > signDiff * estimate {
-                    maxLib = slibs[i]
-                    break
-                }
-            }
-        }
-        
-//        var maxLib = libraries.max { (lib1, lib2) -> Bool in
-//
-//            return lib1.timeRatio(restDays) < lib2.timeRatio(restDays)
-//        }!
-        
+var stack: [(libID: Int, startDay: Int)] = []
+stack.append((0,0))
 
-    
-    debugPrint("Free days count: \(restDays) signDays: \( maxLib.daysForSign )")
+while stack.count > 0 {
         
-   if let booksToSend = maxLib.booksToSend(restDays),
-    booksToSend.count > 0 {
+    let stackItem = stack.last!
+    var theLib = libraries[stackItem.libID]
     
-    if debug {
-        // calculate score
-        
-        let (points, _, _) = maxLib.totalPoint(restDays)
-        finalScore += points
-    }
+    // add the library to current solution
     
-        // remove lib from source array
-        if let index = libraries.firstIndex(where: { (lib) -> Bool in
-            lib.libID == maxLib.libID
-        })  {
-            libraries.remove(at: index)
-            numLibsByDaysToSign[maxLib.daysForSign]! -= 1
-        }
-   
-        // save list of books and mark books as read
-        maxLib.selectedBooks = booksToSend
+    let booksToSend = theLib.booksToSend(restDays)
     
-        for i in 0 ..< booksToSend.count {
-            let bookID = booksToSend[i].bookID
-            allBooks[bookID].sent = true
-        }
-        
-        sortedLibs.append(maxLib)
-        restDays -= maxLib.daysForSign
-   } else {
-        debugPrint("hi")
-        stopFlag = true
-    }
+    
 }
 
 debugPrint("FINAL SCORE: \( finalScore)\n")
